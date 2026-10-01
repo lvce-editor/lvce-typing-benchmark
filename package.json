@@ -28,11 +28,11 @@
   "dependencies": {
     "@codemirror/lang-html": "6.4.12",
     "@github1s/vscode-web": "0.30.2",
-    "@lvce-editor/editor-worker": "19.60.2",
+    "@lvce-editor/editor-worker": "19.69.1",
     "@lvce-editor/renderer-process": "30.58.3",
     "@lvce-editor/rpc": "6.19.3",
     "@lvce-editor/server": "0.114.2",
-    "@lvce-editor/static-server": "0.114.2",
+    "@lvce-editor/static-server": "0.119.5",
     "@lvce-editor/syntax-highlighting-worker": "2.5.1",
     "@lvce-editor/virtual-dom": "11.19.0",
     "ace-builds": "1.44.0",
