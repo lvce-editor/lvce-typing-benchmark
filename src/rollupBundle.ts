@@ -1,3 +1,4 @@
+import { basename, dirname } from 'node:path'
 import commonjsPlugin, { type RollupCommonJSOptions } from '@rollup/plugin-commonjs'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import terserPlugin, { type Options as TerserOptions } from '@rollup/plugin-terser'
@@ -44,7 +45,12 @@ const typescriptTranspilePlugin = (): Plugin => {
   }
 }
 
-const writeBundle = async (input: string, outputPath: string, plugins: readonly Plugin[] = []): Promise<void> => {
+const writeBundle = async (
+  input: string,
+  outputPath: string,
+  plugins: readonly Plugin[] = [],
+  splitChunks = false,
+): Promise<void> => {
   const bundle = await rollup({
     input,
     plugins: [...plugins],
@@ -53,7 +59,13 @@ const writeBundle = async (input: string, outputPath: string, plugins: readonly 
   try {
     await bundle.write({
       compact: true,
-      file: outputPath,
+      ...(splitChunks
+        ? {
+            chunkFileNames: '[name]-[hash].js',
+            dir: dirname(outputPath),
+            entryFileNames: basename(outputPath),
+          }
+        : { file: outputPath }),
       format: 'es',
       generatedCode: 'es2015',
       plugins: [getTerserPlugin()],
@@ -73,7 +85,7 @@ export const bundleBrowserFixture = async (input: string, outputPath: string): P
 }
 
 export const bundleJavaScriptFile = async (input: string, outputPath: string): Promise<void> => {
-  await writeBundle(input, outputPath)
+  await writeBundle(input, outputPath, [], true)
 }
 
 const virtualEntryId = '\0lvce-single-thread-entry'
@@ -88,7 +100,7 @@ export const bundleJavaScriptSource = async (source: string, outputPath: string)
       return id === virtualEntryId ? id : undefined
     },
   }
-  await writeBundle(virtualEntryId, outputPath, [virtualEntryPlugin])
+  await writeBundle(virtualEntryId, outputPath, [virtualEntryPlugin], true)
 }
 
 export const generateIife = async (input: string, name: string, plugins: readonly Plugin[] = []): Promise<string> => {

@@ -26,17 +26,15 @@ test('generates separate editor and IDE fixtures', async () => {
     })
 
     const files = await readdir(join(output, 'lvce-editor-minimal'))
-    assert.deepEqual(
-      files.toSorted((left, right) => left.localeCompare(right)),
-      [
-        'editorWorkerMain.js',
-        'index.css',
-        'index.html',
-        'index.js',
-        'syntaxHighlightingWorkerMain.js',
-        'tokenizeHtml.js',
-      ],
-    )
+    for (const file of ['editorWorkerMain.js', 'index.css', 'index.html', 'index.js', 'syntaxHighlightingWorkerMain.js', 'tokenizeHtml.js']) {
+      assert.ok(files.includes(file), `${file} should be generated for the minimal LVCE fixture`)
+    }
+    const editorWorkerBundle = await readFile(join(output, 'lvce-editor-minimal', 'editorWorkerMain.js'), 'utf8')
+    const relativeChunkNames = Array.from(editorWorkerBundle.matchAll(/import\(["']\.\/([^"']+\.js)["']\)/g), (match) => match[1] as string)
+    assert.ok(relativeChunkNames.length > 0, 'editor worker chunks should be referenced from the entry bundle')
+    for (const chunkName of relativeChunkNames) {
+      assert.ok(files.includes(chunkName), `editor worker chunk ${chunkName} should be generated next to the entry bundle`)
+    }
     assert.equal(
       files.some((file) => file.toLowerCase().includes('rendererworker')),
       false,
@@ -62,17 +60,20 @@ test('generates separate editor and IDE fixtures', async () => {
       version: editorPackage.version,
     })
     const singleThreadFiles = await readdir(join(output, 'lvce-editor-single-thread'))
-    assert.deepEqual(singleThreadFiles.toSorted((left, right) => left.localeCompare(right)), [
-      'index.css',
-      'index.html',
-      'index.js',
-    ])
+    for (const file of ['index.css', 'index.html', 'index.js']) {
+      assert.ok(singleThreadFiles.includes(file), `${file} should be generated for the single-thread LVCE fixture`)
+    }
     const singleThreadHtml = await readFile(join(output, 'lvce-editor-single-thread', 'index.html'), 'utf8')
     assert.match(singleThreadHtml, /"tokenizePath":"embedded:html"/)
     assert.doesNotMatch(singleThreadHtml, /WorkerUrl/)
     const singleThreadBundle = await readFile(join(output, 'lvce-editor-single-thread', 'index.js'), 'utf8')
     assert.match(singleThreadBundle, /Direct LVCE command not found/)
     assert.match(singleThreadBundle, /embedded:html/)
+    const singleThreadChunks = Array.from(singleThreadBundle.matchAll(/import\(["']\.\/([^"']+\.js)["']\)/g), (match) => match[1] as string)
+    assert.ok(singleThreadChunks.length > 0, 'single-thread editor worker chunks should be referenced from the entry bundle')
+    for (const chunkName of singleThreadChunks) {
+      assert.ok(singleThreadFiles.includes(chunkName), `single-thread chunk ${chunkName} should be generated next to the entry bundle`)
+    }
 
     const acePackage = JSON.parse(await readFile(resolve('node_modules', 'ace-builds', 'package.json'), 'utf8')) as { readonly version: string }
     assert.deepEqual(manifest.editors.find((editor) => editor.id === 'ace-editor'), {
