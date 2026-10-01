@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { bundleJavaScriptSource, generateBrowserIife, generateIife } from './rollupBundle.ts'
 
 const replaceExactlyOnce = (source: string, search: string, replacement: string, label: string): string => {
@@ -11,6 +11,14 @@ const replaceExactlyOnce = (source: string, search: string, replacement: string,
     throw new Error(`Patch for ${label} matched more than once`)
   }
   return `${source.slice(0, firstIndex)}${replacement}${source.slice(firstIndex + search.length)}`
+}
+
+const replaceExactlyOncePattern = (source: string, pattern: RegExp, replacement: string, label: string): string => {
+  const matches = source.match(new RegExp(pattern, `${pattern.flags}g`)) ?? []
+  if (matches.length !== 1) {
+    throw new Error(`Patch for ${label} matched ${matches.length} times`)
+  }
+  return source.replace(pattern, () => replacement)
 }
 
 const directRpcSource = `
@@ -54,15 +62,7 @@ const createSyntaxBundle = (source: string): string => {
 }
 
 const createSyntaxRpc = `const createSyntaxHighlightingWorkerRpc = async () => {
-  try {
-    const rpc = await create$e({
-      commandMap: {},
-      send: sendMessagePortToSyntaxHighlightingWorker
-    });
-    return rpc;
-  } catch (error) {
-    throw new VError(error, \`Failed to create syntax highlighting worker rpc\`);
-  }
+  return __lvceCreateDirectRpc(__lvceSyntaxCommands);
 };`
 
 const editorMain = `const main = async () => {
@@ -74,12 +74,10 @@ const editorMain = `const main = async () => {
 main();`
 
 const createEditorBundle = (source: string): string => {
-  const withDirectSyntax = replaceExactlyOnce(
+  const withDirectSyntax = replaceExactlyOncePattern(
     source,
+    /^const createSyntaxHighlightingWorkerRpc = async \(\) => \{[\s\S]*?^};/m,
     createSyntaxRpc,
-    `const createSyntaxHighlightingWorkerRpc = async () => {
-  return __lvceCreateDirectRpc(__lvceSyntaxCommands);
-};`,
     'editor worker syntax-highlighting RPC',
   )
   const withoutWorkerMain = replaceExactlyOnce(
@@ -119,7 +117,15 @@ export interface SingleThreadLvceBundleOptions {
 }
 
 export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOptions): Promise<void> => {
-  const editorSource = await readFile(options.editorWorkerPath, 'utf8')
+  const rawEditorSource = replaceExactlyOncePattern(
+    await readFile(options.editorWorkerPath, 'utf8'),
+    /^export \{[^}]+\};$/m,
+    '',
+    'unused editor worker exports',
+  )
+  const editorSource = rawEditorSource.replaceAll(/import\((['"])(\.\/[^'"]+)\1\)/g, (_match, quote: string, relativePath: string) => {
+    return `import(${quote}${resolve(dirname(options.editorWorkerPath), relativePath.slice(2))}${quote})`
+  })
   const rendererSource = await generateBrowserIife(options.rendererProcessPath, '__lvceRenderer')
   const syntaxSource = await readFile(options.syntaxHighlightingWorkerPath, 'utf8')
   const tokenizerSource = await generateIife(options.htmlTokenizerPath, '__lvceHtmlTokenizer')
