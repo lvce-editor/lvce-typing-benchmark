@@ -87,7 +87,7 @@ const createEditorBundle = (source: string): string => {
 return {
   commands: commandMap,
   configureRenderer(rendererCommands) {
-    set$b(__lvceCreateDirectRpc(rendererCommands));
+    set$e(__lvceCreateDirectRpc(rendererCommands));
   }
 };`,
     'editor worker main',
@@ -117,12 +117,7 @@ export interface SingleThreadLvceBundleOptions {
 }
 
 export const bundleSingleThreadLvce = async (options: SingleThreadLvceBundleOptions): Promise<void> => {
-  const rawEditorSource = replaceExactlyOncePattern(
-    await readFile(options.editorWorkerPath, 'utf8'),
-    /^export \{[^}]+\};$/m,
-    '',
-    'unused editor worker exports',
-  )
+  const rawEditorSource = await readFile(options.editorWorkerPath, 'utf8')
   const editorSource = rawEditorSource.replaceAll(/import\((['"])(\.\/[^'"]+)\1\)/g, (_match, quote: string, relativePath: string) => {
     return `import(${quote}${resolve(dirname(options.editorWorkerPath), relativePath.slice(2))}${quote})`
   })
