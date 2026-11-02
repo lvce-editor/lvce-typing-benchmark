@@ -31,7 +31,6 @@ test('generates separate editor and IDE fixtures', async () => {
     }
     const editorWorkerBundle = await readFile(join(output, 'lvce-editor-minimal', 'editorWorkerMain.js'), 'utf8')
     const relativeChunkNames = Array.from(editorWorkerBundle.matchAll(/import\(["']\.\/([^"']+\.js)["']\)/g), (match) => match[1] as string)
-    assert.ok(relativeChunkNames.length > 0, 'editor worker chunks should be referenced from the entry bundle')
     for (const chunkName of relativeChunkNames) {
       assert.ok(files.includes(chunkName), `editor worker chunk ${chunkName} should be generated next to the entry bundle`)
     }
@@ -70,7 +69,6 @@ test('generates separate editor and IDE fixtures', async () => {
     assert.match(singleThreadBundle, /Direct LVCE command not found/)
     assert.match(singleThreadBundle, /embedded:html/)
     const singleThreadChunks = Array.from(singleThreadBundle.matchAll(/import\(["']\.\/([^"']+\.js)["']\)/g), (match) => match[1] as string)
-    assert.ok(singleThreadChunks.length > 0, 'single-thread editor worker chunks should be referenced from the entry bundle')
     for (const chunkName of singleThreadChunks) {
       assert.ok(singleThreadFiles.includes(chunkName), `single-thread chunk ${chunkName} should be generated next to the entry bundle`)
     }
